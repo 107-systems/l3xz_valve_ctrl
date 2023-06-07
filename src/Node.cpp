@@ -192,7 +192,7 @@ void Node::ctrl_loop()
 
 Node::State Node::handle_Init()
 {
-  /* TODO: Wait for susbcribed topics to arrive. */
+  /* TODO: Wait for subscribed topics to arrive. */
   return State::Control;
 }
 
