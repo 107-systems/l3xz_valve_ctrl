@@ -10,6 +10,9 @@ def generate_launch_description():
       name='l3xz_valve_ctrl',
       output='screen',
       emulate_tty=True,
-      parameters=[]
+      parameters=[
+        {'KP' : 75.0},
+        {'KI' : 25.0},
+      ]
     )
   ])
