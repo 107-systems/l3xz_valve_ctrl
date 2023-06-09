@@ -264,34 +264,35 @@ Node::State Node::handle_Control()
 
 
       static float constexpr ANGLE_DIFF_EPSILON_rad = 2.5f * M_PI / 180.0f;
+
       if (fabs(angle_err_rad) < ANGLE_DIFF_EPSILON_rad)
       {
         _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = SERVO_PULSE_WIDTH_NEUTRAL_us;
         _angle_error_sum_rad_map[make_key(leg, joint)] = 0.0f;
       }
+      else
+      {
+        float const KP = 75.0f * (180.f / M_PI);
+        float const P_OUT = (KP * angle_err_rad);
+
+        float angle_error_sum_rad = _angle_error_sum_rad_map.at(make_key(leg, joint)) + angle_err_rad;
+        angle_error_sum_rad = std::min(angle_error_sum_rad, static_cast<float>(          M_PI/2.0f));
+        angle_error_sum_rad = std::max(angle_error_sum_rad, static_cast<float>((-1.0f) * M_PI/2.0f));
+        _angle_error_sum_rad_map[make_key(leg, joint)] = angle_error_sum_rad;
+        float const dt_sec = static_cast<float>(CTRL_LOOP_RATE.count()) / 1000.0f;
+
+        float const KI = 10.0f * (180.f / M_PI);
+        float const I_OUT = (KI * angle_error_sum_rad * dt_sec);
 
 
-      float const KP = 75.0f * (180.f / M_PI);
-      float const P_OUT = (KP * angle_err_rad);
+        /* Servo PWM set point calculation. */
+        float pulse_width = SERVO_PULSE_WIDTH_NEUTRAL_us + P_OUT + I_OUT;
 
-      float angle_error_sum_rad = _angle_error_sum_rad_map.at(make_key(leg, joint)) + angle_err_rad;
-      angle_error_sum_rad = std::min(angle_error_sum_rad, static_cast<float>(          M_PI/2.0f));
-      angle_error_sum_rad = std::max(angle_error_sum_rad, static_cast<float>((-1.0f) * M_PI/2.0f));
-      _angle_error_sum_rad_map[make_key(leg, joint)] = angle_error_sum_rad;
-      float const dt_sec = static_cast<float>(CTRL_LOOP_RATE.count()) / 1000.0f;
+        /* Limit output to actual servo actuator limits. */
+        pulse_width = std::max(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MIN_us));
+        pulse_width = std::min(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MAX_us));
 
-      float const KI = 10.0f * (180.f / M_PI);
-      float const I_OUT = (KI * angle_error_sum_rad * dt_sec);
-
-
-      /* Servo PWM set point calculation. */
-      float pulse_width = SERVO_PULSE_WIDTH_NEUTRAL_us + P_OUT + I_OUT;
-
-      /* Limit output to actual servo actuator limits. */
-      pulse_width = std::max(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MIN_us));
-      pulse_width = std::min(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MAX_us));
-
-      _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = static_cast<uint16_t>(pulse_width);
+        _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = static_cast<uint16_t>(pulse_width);      }
     }
 
   return State::Control;
