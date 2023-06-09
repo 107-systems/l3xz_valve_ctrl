@@ -274,10 +274,13 @@ Node::State Node::handle_Control()
       float const KP = 75.0f * (180.f / M_PI);
       float const P_OUT = (KP * angle_err_rad);
 
-      float const KI = 10.0f * (180.f / M_PI);
-      _angle_error_sum_rad_map[make_key(leg, joint)] += angle_err_rad;
-      float const angle_error_sum_rad = _angle_error_sum_rad_map.at(make_key(leg, joint));
+      float angle_error_sum_rad = _angle_error_sum_rad_map.at(make_key(leg, joint)) + angle_err_rad;
+      angle_error_sum_rad = std::min(angle_error_sum_rad, static_cast<float>(          M_PI/2.0f));
+      angle_error_sum_rad = std::max(angle_error_sum_rad, static_cast<float>((-1.0f) * M_PI/2.0f));
+      _angle_error_sum_rad_map[make_key(leg, joint)] = angle_error_sum_rad;
       float const dt_sec = static_cast<float>(CTRL_LOOP_RATE.count()) / 1000.0f;
+
+      float const KI = 10.0f * (180.f / M_PI);
       float const I_OUT = (KI * angle_error_sum_rad * dt_sec);
 
 
