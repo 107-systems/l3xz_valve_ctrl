@@ -251,33 +251,21 @@ Node::State Node::handle_Control()
     {
       float const angle_actual_rad = _angle_actual_rad_map.at(make_key(leg, joint));
       float const angle_target_rad = _angle_target_rad_map.at(make_key(leg, joint));
-      float const angle_diff_rad = angle_actual_rad - angle_target_rad;
+      float const angle_diff_rad = angle_target_rad - angle_actual_rad;
 
       static float constexpr ANGLE_DIFF_EPSILON_rad = 2.5f * M_PI / 180.0f;
 
       if (fabs(angle_diff_rad) < ANGLE_DIFF_EPSILON_rad)
         _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = SERVO_PULSE_WIDTH_NEUTRAL_us;
 
-      float const k_ANGLE_DIFF = 75.0f;
+      float const k_ANGLE_DIFF = 75.0f * (180.f / M_PI);
 
-      if (angle_actual_rad > angle_target_rad)
-      {
-        float const pulse_width = std::max(
-          SERVO_PULSE_WIDTH_NEUTRAL_us - (k_ANGLE_DIFF * fabs(angle_diff_rad * 180.f / M_PI)),
-          static_cast<double>(SERVO_PULSE_WIDTH_MIN_us)
-        );
+      float pulse_width = SERVO_PULSE_WIDTH_NEUTRAL_us + (k_ANGLE_DIFF * angle_diff_rad);
 
-        _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = static_cast<uint16_t>(pulse_width);
-      }
-      else
-      {
-        float const pulse_width = std::min(
-          SERVO_PULSE_WIDTH_NEUTRAL_us + (k_ANGLE_DIFF * fabs(angle_diff_rad * 180.f / M_PI)),
-          static_cast<double>(SERVO_PULSE_WIDTH_MAX_us)
-        );
+      pulse_width = std::max(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MIN_us));
+      pulse_width = std::min(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MAX_us));
 
-        _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = static_cast<uint16_t>(pulse_width);
-      }
+      _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = static_cast<uint16_t>(pulse_width);
     }
 
   return State::Control;
