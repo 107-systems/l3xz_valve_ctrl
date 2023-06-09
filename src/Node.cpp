@@ -122,12 +122,15 @@ void Node::init_sub()
 
         _angle_actual_rad_map[make_key(leg, joint)] = 0.0f;
 
+        _opt_last_angle_actual_msg[make_key(leg, joint)] = std::nullopt;
+
         _angle_actual_sub[make_key(leg, joint)] = create_subscription<std_msgs::msg::Float32>(
           angle_actual_sub_topic.str(),
           1,
           [this, leg, joint](std_msgs::msg::Float32::SharedPtr const msg)
           {
             _angle_actual_rad_map.at(make_key(leg, joint)) = msg->data;
+            _opt_last_angle_actual_msg.at(make_key(leg, joint)) = std::chrono::steady_clock::now();
           });
       }
       {
@@ -136,12 +139,15 @@ void Node::init_sub()
 
         _angle_target_rad_map[make_key(leg, joint)] = 0.0f;
 
+        _opt_last_angle_target_msg[make_key(leg, joint)] = std::nullopt;
+
         _angle_target_sub[make_key(leg, joint)] = create_subscription<std_msgs::msg::Float32>(
           angle_target_sub_topic.str(),
           1,
           [this, leg, joint](std_msgs::msg::Float32::SharedPtr const msg)
           {
             _angle_target_rad_map.at(make_key(leg, joint)) = msg->data;
+            _opt_last_angle_target_msg.at(make_key(leg, joint)) = std::chrono::steady_clock::now();
           });
       }
     }
@@ -192,7 +198,45 @@ void Node::ctrl_loop()
 
 Node::State Node::handle_Init()
 {
-  /* TODO: Wait for subscribed topics to arrive. */
+  _servo_pulse_width = DEFAULT_SERVO_PULSE_WIDTH;
+
+  /* Check if data from all subscribed topics has arrived. Before
+   * this pre-condition is not met it makes no sense to do any
+   * actual servo actuator control.
+   */
+  std::stringstream angle_actual_no_message_list,
+                    angle_target_no_message_list;
+
+  bool angle_actual_no_message = false,
+       angle_target_no_message = false;
+
+  for (auto leg : LEG_LIST)
+    for (auto joint : HYDRAULIC_JOINT_LIST)
+    {
+      if (!_opt_last_angle_actual_msg.at(make_key(leg, joint)).has_value())
+      {
+        angle_actual_no_message = true;
+        angle_actual_no_message_list << LegToStr(leg) << ":" << JointToStr(joint) << " ";
+      }
+      if (!_opt_last_angle_target_msg.at(make_key(leg, joint)).has_value())
+      {
+        angle_target_no_message = true;
+        angle_target_no_message_list << LegToStr(leg) << ":" << JointToStr(joint) << " ";
+      }
+    }
+
+  if (angle_actual_no_message || angle_target_no_message)
+  {
+    RCLCPP_WARN_THROTTLE(get_logger(),
+                         *get_clock(),
+                         2000,
+                         "node has not received messages on all subscribed topics yet\nno angle ACTUAL message for [ %s]\nno angle TARGET message for [ %s]",
+                         angle_actual_no_message_list.str().c_str(),
+                         angle_target_no_message_list.str().c_str());
+
+    return State::Init;
+  }
+
   return State::Control;
 }
 

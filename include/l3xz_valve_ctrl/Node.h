@@ -56,9 +56,13 @@ private:
   std::map<HydraulicLegJointKey, float> _angle_actual_rad_map;
   std::map<HydraulicLegJointKey,
            rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr> _angle_actual_sub;
+  std::map<HydraulicLegJointKey,
+           std::optional<std::chrono::steady_clock::time_point>> _opt_last_angle_actual_msg;
   std::map<HydraulicLegJointKey, float> _angle_target_rad_map;
   std::map<HydraulicLegJointKey,
            rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr> _angle_target_sub;
+  std::map<HydraulicLegJointKey,
+           std::optional<std::chrono::steady_clock::time_point>> _opt_last_angle_target_msg;
   void init_sub();
 
   rclcpp::Publisher<std_msgs::msg::UInt16MultiArray>::SharedPtr _servo_pulse_width_pub;
