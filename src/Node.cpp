@@ -75,6 +75,22 @@ static std::list<HydraulicJoint> const HYDRAULIC_JOINT_LIST =
   HydraulicJoint::Femur, HydraulicJoint::Tibia
 };
 
+static std::map<HydraulicLegJointKey, size_t> const LEG_JOINT_to_SERVO_NUM_MAP =
+  {
+    {make_key(Leg::RightBack,   HydraulicJoint::Tibia),  0},
+    {make_key(Leg::RightBack,   HydraulicJoint::Femur),  1},
+    {make_key(Leg::RightMiddle, HydraulicJoint::Tibia),  2},
+    {make_key(Leg::RightMiddle, HydraulicJoint::Femur),  3},
+    {make_key(Leg::RightFront,  HydraulicJoint::Tibia),  4},
+    {make_key(Leg::RightFront,  HydraulicJoint::Femur),  5},
+    {make_key(Leg::LeftFront,   HydraulicJoint::Femur),  6},
+    {make_key(Leg::LeftFront,   HydraulicJoint::Tibia),  7},
+    {make_key(Leg::LeftMiddle,  HydraulicJoint::Femur),  8},
+    {make_key(Leg::LeftMiddle,  HydraulicJoint::Tibia),  9},
+    {make_key(Leg::LeftBack,    HydraulicJoint::Femur), 10},
+    {make_key(Leg::LeftBack,    HydraulicJoint::Tibia), 11}
+  };
+
 /**************************************************************************************
  * CTOR/DTOR
  **************************************************************************************/
@@ -230,22 +246,6 @@ Node::State Node::handle_Init()
 
 Node::State Node::handle_Control()
 {
-  std::map<HydraulicLegJointKey, size_t> const LEG_JOINT_to_SERVO_NUM_MAP =
-    {
-      {make_key(Leg::RightBack,   HydraulicJoint::Tibia),  0},
-      {make_key(Leg::RightBack,   HydraulicJoint::Femur),  1},
-      {make_key(Leg::RightMiddle, HydraulicJoint::Tibia),  2},
-      {make_key(Leg::RightMiddle, HydraulicJoint::Femur),  3},
-      {make_key(Leg::RightFront,  HydraulicJoint::Tibia),  4},
-      {make_key(Leg::RightFront,  HydraulicJoint::Femur),  5},
-      {make_key(Leg::LeftFront,   HydraulicJoint::Femur),  6},
-      {make_key(Leg::LeftFront,   HydraulicJoint::Tibia),  7},
-      {make_key(Leg::LeftMiddle,  HydraulicJoint::Femur),  8},
-      {make_key(Leg::LeftMiddle,  HydraulicJoint::Tibia),  9},
-      {make_key(Leg::LeftBack,    HydraulicJoint::Femur), 10},
-      {make_key(Leg::LeftBack,    HydraulicJoint::Tibia), 11}
-    };
-
   for (auto leg: LEG_LIST)
     for (auto joint: HYDRAULIC_JOINT_LIST)
     {
