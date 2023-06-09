@@ -105,6 +105,8 @@ Node::Node()
   init_sub();
   init_pub();
 
+  init_error_sum_map();
+
   _ctrl_loop_timer = create_wall_timer(CTRL_LOOP_RATE, [this]() { this->ctrl_loop(); });
 
   RCLCPP_INFO(get_logger(), "%s init complete.", get_name());
@@ -200,6 +202,13 @@ void Node::ctrl_loop()
   _servo_pulse_width_pub->publish(servo_pulse_width_msg);
 }
 
+void Node::init_error_sum_map()
+{
+  for (auto leg : LEG_LIST)
+    for (auto joint : HYDRAULIC_JOINT_LIST)
+      _angle_error_sum_rad_map[make_key(leg, joint)] = 0.0f;
+}
+
 Node::State Node::handle_Init()
 {
   _servo_pulse_width = DEFAULT_SERVO_PULSE_WIDTH;
@@ -253,15 +262,29 @@ Node::State Node::handle_Control()
       float const angle_target_rad = _angle_target_rad_map.at(make_key(leg, joint));
       float const angle_err_rad    = angle_target_rad - angle_actual_rad;
 
+
       static float constexpr ANGLE_DIFF_EPSILON_rad = 2.5f * M_PI / 180.0f;
-
       if (fabs(angle_err_rad) < ANGLE_DIFF_EPSILON_rad)
+      {
         _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = SERVO_PULSE_WIDTH_NEUTRAL_us;
+        _angle_error_sum_rad_map[make_key(leg, joint)] = 0.0f;
+      }
 
-      float const k_ANGLE_DIFF = 75.0f * (180.f / M_PI);
 
-      float pulse_width = SERVO_PULSE_WIDTH_NEUTRAL_us + (k_ANGLE_DIFF * angle_err_rad);
+      float const KP = 75.0f * (180.f / M_PI);
+      float const P_OUT = (KP * angle_err_rad);
 
+      float const KI = 10.0f * (180.f / M_PI);
+      _angle_error_sum_rad_map[make_key(leg, joint)] += angle_err_rad;
+      float const angle_error_sum_rad = _angle_error_sum_rad_map.at(make_key(leg, joint));
+      float const dt_sec = static_cast<float>(CTRL_LOOP_RATE.count()) / 1000.0f;
+      float const I_OUT = (KI * angle_error_sum_rad * dt_sec);
+
+
+      /* Servo PWM set point calculation. */
+      float pulse_width = SERVO_PULSE_WIDTH_NEUTRAL_us + P_OUT + I_OUT;
+
+      /* Limit output to actual servo actuator limits. */
       pulse_width = std::max(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MIN_us));
       pulse_width = std::min(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MAX_us));
 
