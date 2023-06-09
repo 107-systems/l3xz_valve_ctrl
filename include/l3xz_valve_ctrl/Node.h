@@ -56,14 +56,17 @@ private:
   std::map<HydraulicLegJointKey, float> _angle_actual_rad_map;
   std::map<HydraulicLegJointKey,
            rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr> _angle_actual_sub;
+  std::map<HydraulicLegJointKey,
+           std::optional<std::chrono::steady_clock::time_point>> _opt_last_angle_actual_msg;
   std::map<HydraulicLegJointKey, float> _angle_target_rad_map;
   std::map<HydraulicLegJointKey,
            rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr> _angle_target_sub;
+  std::map<HydraulicLegJointKey,
+           std::optional<std::chrono::steady_clock::time_point>> _opt_last_angle_target_msg;
   void init_sub();
 
   rclcpp::Publisher<std_msgs::msg::UInt16MultiArray>::SharedPtr _servo_pulse_width_pub;
   void init_pub();
-  void publish_servo_pulse_width();
 
   std::chrono::steady_clock::time_point _prev_ctrl_loop_timepoint;
   static std::chrono::milliseconds constexpr CTRL_LOOP_RATE{10};
@@ -78,6 +81,8 @@ private:
   State handle_Init();
   State handle_Control();
 
+  static std_msgs::msg::UInt16MultiArray toServoPulseWidthMessage(ServoPulseWidth const & servo_pulse_width);
+
   static uint16_t constexpr SERVO_PULSE_WIDTH_MIN_us     = 1000U;
   static uint16_t constexpr SERVO_PULSE_WIDTH_NEUTRAL_us = 1500U;
   static uint16_t constexpr SERVO_PULSE_WIDTH_MAX_us     = 2000U;
@@ -87,9 +92,6 @@ private:
     SERVO_PULSE_WIDTH_NEUTRAL_us, SERVO_PULSE_WIDTH_NEUTRAL_us, SERVO_PULSE_WIDTH_NEUTRAL_us, SERVO_PULSE_WIDTH_NEUTRAL_us,
     SERVO_PULSE_WIDTH_NEUTRAL_us, SERVO_PULSE_WIDTH_NEUTRAL_us, SERVO_PULSE_WIDTH_NEUTRAL_us, SERVO_PULSE_WIDTH_NEUTRAL_us
   };
-
-  static ServoPulseWidth const calc_ServoPulseWidth(std::map<HydraulicLegJointKey, float> const & angle_actual_rad_map,
-                                                    std::map<HydraulicLegJointKey, float> const & angle_target_rad_map);
 };
 
 /**************************************************************************************

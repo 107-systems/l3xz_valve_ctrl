@@ -75,6 +75,22 @@ static std::list<HydraulicJoint> const HYDRAULIC_JOINT_LIST =
   HydraulicJoint::Femur, HydraulicJoint::Tibia
 };
 
+static std::map<HydraulicLegJointKey, size_t> const LEG_JOINT_to_SERVO_NUM_MAP =
+  {
+    {make_key(Leg::RightBack,   HydraulicJoint::Tibia),  0},
+    {make_key(Leg::RightBack,   HydraulicJoint::Femur),  1},
+    {make_key(Leg::RightMiddle, HydraulicJoint::Tibia),  2},
+    {make_key(Leg::RightMiddle, HydraulicJoint::Femur),  3},
+    {make_key(Leg::RightFront,  HydraulicJoint::Tibia),  4},
+    {make_key(Leg::RightFront,  HydraulicJoint::Femur),  5},
+    {make_key(Leg::LeftFront,   HydraulicJoint::Femur),  6},
+    {make_key(Leg::LeftFront,   HydraulicJoint::Tibia),  7},
+    {make_key(Leg::LeftMiddle,  HydraulicJoint::Femur),  8},
+    {make_key(Leg::LeftMiddle,  HydraulicJoint::Tibia),  9},
+    {make_key(Leg::LeftBack,    HydraulicJoint::Femur), 10},
+    {make_key(Leg::LeftBack,    HydraulicJoint::Tibia), 11}
+  };
+
 /**************************************************************************************
  * CTOR/DTOR
  **************************************************************************************/
@@ -122,12 +138,15 @@ void Node::init_sub()
 
         _angle_actual_rad_map[make_key(leg, joint)] = 0.0f;
 
+        _opt_last_angle_actual_msg[make_key(leg, joint)] = std::nullopt;
+
         _angle_actual_sub[make_key(leg, joint)] = create_subscription<std_msgs::msg::Float32>(
           angle_actual_sub_topic.str(),
           1,
           [this, leg, joint](std_msgs::msg::Float32::SharedPtr const msg)
           {
             _angle_actual_rad_map.at(make_key(leg, joint)) = msg->data;
+            _opt_last_angle_actual_msg.at(make_key(leg, joint)) = std::chrono::steady_clock::now();
           });
       }
       {
@@ -136,12 +155,15 @@ void Node::init_sub()
 
         _angle_target_rad_map[make_key(leg, joint)] = 0.0f;
 
+        _opt_last_angle_target_msg[make_key(leg, joint)] = std::nullopt;
+
         _angle_target_sub[make_key(leg, joint)] = create_subscription<std_msgs::msg::Float32>(
           angle_target_sub_topic.str(),
           1,
           [this, leg, joint](std_msgs::msg::Float32::SharedPtr const msg)
           {
             _angle_target_rad_map.at(make_key(leg, joint)) = msg->data;
+            _opt_last_angle_target_msg.at(make_key(leg, joint)) = std::chrono::steady_clock::now();
           });
       }
     }
@@ -150,19 +172,6 @@ void Node::init_sub()
 void Node::init_pub()
 {
   _servo_pulse_width_pub = create_publisher<std_msgs::msg::UInt16MultiArray>("/l3xz/servo_pulse_width/target", 1);
-}
-
-void Node::publish_servo_pulse_width()
-{
-  std_msgs::msg::UInt16MultiArray msg;
-  /* Configure dimensions. */
-  msg.layout.dim.push_back(std_msgs::msg::MultiArrayDimension());
-  msg.layout.dim[0].size = _servo_pulse_width.size();
-  /* Copy in the data. */
-  msg.data.clear();
-  msg.data.insert(msg.data.end(), _servo_pulse_width.begin(), _servo_pulse_width.end());
-  /* Publish the message. */
-  _servo_pulse_width_pub->publish(msg);
 }
 
 void Node::ctrl_loop()
@@ -187,33 +196,56 @@ void Node::ctrl_loop()
     default: __builtin_unreachable(); break;
   }
 
-  publish_servo_pulse_width();
+  auto const servo_pulse_width_msg = toServoPulseWidthMessage(_servo_pulse_width);
+  _servo_pulse_width_pub->publish(servo_pulse_width_msg);
 }
 
 Node::State Node::handle_Init()
 {
-  /* TODO: Wait for subscribed topics to arrive. */
+  _servo_pulse_width = DEFAULT_SERVO_PULSE_WIDTH;
+
+  /* Check if data from all subscribed topics has arrived. Before
+   * this pre-condition is not met it makes no sense to do any
+   * actual servo actuator control.
+   */
+  std::stringstream angle_actual_no_message_list,
+                    angle_target_no_message_list;
+
+  bool angle_actual_no_message = false,
+       angle_target_no_message = false;
+
+  for (auto leg : LEG_LIST)
+    for (auto joint : HYDRAULIC_JOINT_LIST)
+    {
+      if (!_opt_last_angle_actual_msg.at(make_key(leg, joint)).has_value())
+      {
+        angle_actual_no_message = true;
+        angle_actual_no_message_list << LegToStr(leg) << ":" << JointToStr(joint) << " ";
+      }
+      if (!_opt_last_angle_target_msg.at(make_key(leg, joint)).has_value())
+      {
+        angle_target_no_message = true;
+        angle_target_no_message_list << LegToStr(leg) << ":" << JointToStr(joint) << " ";
+      }
+    }
+
+  if (angle_actual_no_message || angle_target_no_message)
+  {
+    RCLCPP_WARN_THROTTLE(get_logger(),
+                         *get_clock(),
+                         2000,
+                         "node has not received messages on all subscribed topics yet\nno angle ACTUAL message for [ %s]\nno angle TARGET message for [ %s]",
+                         angle_actual_no_message_list.str().c_str(),
+                         angle_target_no_message_list.str().c_str());
+
+    return State::Init;
+  }
+
   return State::Control;
 }
 
 Node::State Node::handle_Control()
 {
-  std::map<HydraulicLegJointKey, size_t> const LEG_JOINT_to_SERVO_NUM_MAP =
-    {
-      {make_key(Leg::RightBack,   HydraulicJoint::Tibia),  0},
-      {make_key(Leg::RightBack,   HydraulicJoint::Femur),  1},
-      {make_key(Leg::RightMiddle, HydraulicJoint::Tibia),  2},
-      {make_key(Leg::RightMiddle, HydraulicJoint::Femur),  3},
-      {make_key(Leg::RightFront,  HydraulicJoint::Tibia),  4},
-      {make_key(Leg::RightFront,  HydraulicJoint::Femur),  5},
-      {make_key(Leg::LeftFront,   HydraulicJoint::Femur),  6},
-      {make_key(Leg::LeftFront,   HydraulicJoint::Tibia),  7},
-      {make_key(Leg::LeftMiddle,  HydraulicJoint::Femur),  8},
-      {make_key(Leg::LeftMiddle,  HydraulicJoint::Tibia),  9},
-      {make_key(Leg::LeftBack,    HydraulicJoint::Femur), 10},
-      {make_key(Leg::LeftBack,    HydraulicJoint::Tibia), 11}
-    };
-
   for (auto leg: LEG_LIST)
     for (auto joint: HYDRAULIC_JOINT_LIST)
     {
@@ -249,6 +281,21 @@ Node::State Node::handle_Control()
     }
 
   return State::Control;
+}
+
+std_msgs::msg::UInt16MultiArray Node::toServoPulseWidthMessage(ServoPulseWidth const & servo_pulse_width)
+{
+  std_msgs::msg::UInt16MultiArray msg;
+
+  /* Configure dimensions. */
+  msg.layout.dim.push_back(std_msgs::msg::MultiArrayDimension());
+  msg.layout.dim[0].size = servo_pulse_width.size();
+
+  /* Copy in the data. */
+  msg.data.clear();
+  msg.data.insert(msg.data.end(), servo_pulse_width.begin(), servo_pulse_width.end());
+
+  return msg;
 }
 
 /**************************************************************************************
