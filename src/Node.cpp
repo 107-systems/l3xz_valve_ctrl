@@ -101,6 +101,9 @@ Node::Node()
 , _servo_pulse_width{DEFAULT_SERVO_PULSE_WIDTH}
 , _state{State::Init}
 {
+  declare_parameter("KP", 75.0f);
+  declare_parameter("KI", 25.0f);
+
   init_heartbeat();
   init_sub();
   init_pub();
@@ -272,7 +275,7 @@ Node::State Node::handle_Control()
       }
       else
       {
-        float const KP = 75.0f * (180.0f / M_PI);
+        float const KP = get_parameter("KP").as_double() * 180.0f / M_PI;
         float const P_OUT = (KP * angle_err_rad);
 
         float angle_error_sum_rad = _angle_error_sum_rad_map.at(make_key(leg, joint)) + angle_err_rad;
@@ -281,7 +284,7 @@ Node::State Node::handle_Control()
         _angle_error_sum_rad_map[make_key(leg, joint)] = angle_error_sum_rad;
         float const dt_sec = static_cast<float>(CTRL_LOOP_RATE.count()) / 1000.0f;
 
-        float const KI = 25.0f * (180.0f / M_PI);
+        float const KI = get_parameter("KI").as_double() * 180.0f / M_PI;
         float const I_OUT = (KI * angle_error_sum_rad * dt_sec);
 
 
