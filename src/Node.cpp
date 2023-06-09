@@ -251,16 +251,16 @@ Node::State Node::handle_Control()
     {
       float const angle_actual_rad = _angle_actual_rad_map.at(make_key(leg, joint));
       float const angle_target_rad = _angle_target_rad_map.at(make_key(leg, joint));
-      float const angle_diff_rad = angle_target_rad - angle_actual_rad;
+      float const angle_err_rad    = angle_target_rad - angle_actual_rad;
 
       static float constexpr ANGLE_DIFF_EPSILON_rad = 2.5f * M_PI / 180.0f;
 
-      if (fabs(angle_diff_rad) < ANGLE_DIFF_EPSILON_rad)
+      if (fabs(angle_err_rad) < ANGLE_DIFF_EPSILON_rad)
         _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = SERVO_PULSE_WIDTH_NEUTRAL_us;
 
       float const k_ANGLE_DIFF = 75.0f * (180.f / M_PI);
 
-      float pulse_width = SERVO_PULSE_WIDTH_NEUTRAL_us + (k_ANGLE_DIFF * angle_diff_rad);
+      float pulse_width = SERVO_PULSE_WIDTH_NEUTRAL_us + (k_ANGLE_DIFF * angle_err_rad);
 
       pulse_width = std::max(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MIN_us));
       pulse_width = std::min(pulse_width, static_cast<float>(SERVO_PULSE_WIDTH_MAX_us));
