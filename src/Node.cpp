@@ -158,19 +158,6 @@ void Node::init_pub()
   _servo_pulse_width_pub = create_publisher<std_msgs::msg::UInt16MultiArray>("/l3xz/servo_pulse_width/target", 1);
 }
 
-void Node::publish_servo_pulse_width()
-{
-  std_msgs::msg::UInt16MultiArray msg;
-  /* Configure dimensions. */
-  msg.layout.dim.push_back(std_msgs::msg::MultiArrayDimension());
-  msg.layout.dim[0].size = _servo_pulse_width.size();
-  /* Copy in the data. */
-  msg.data.clear();
-  msg.data.insert(msg.data.end(), _servo_pulse_width.begin(), _servo_pulse_width.end());
-  /* Publish the message. */
-  _servo_pulse_width_pub->publish(msg);
-}
-
 void Node::ctrl_loop()
 {
   auto const now = std::chrono::steady_clock::now();
@@ -193,7 +180,8 @@ void Node::ctrl_loop()
     default: __builtin_unreachable(); break;
   }
 
-  publish_servo_pulse_width();
+  auto const servo_pulse_width_msg = toServoPulseWidthMessage(_servo_pulse_width);
+  _servo_pulse_width_pub->publish(servo_pulse_width_msg);
 }
 
 Node::State Node::handle_Init()
@@ -293,6 +281,21 @@ Node::State Node::handle_Control()
     }
 
   return State::Control;
+}
+
+std_msgs::msg::UInt16MultiArray Node::toServoPulseWidthMessage(ServoPulseWidth const & servo_pulse_width)
+{
+  std_msgs::msg::UInt16MultiArray msg;
+
+  /* Configure dimensions. */
+  msg.layout.dim.push_back(std_msgs::msg::MultiArrayDimension());
+  msg.layout.dim[0].size = servo_pulse_width.size();
+
+  /* Copy in the data. */
+  msg.data.clear();
+  msg.data.insert(msg.data.end(), servo_pulse_width.begin(), servo_pulse_width.end());
+
+  return msg;
 }
 
 /**************************************************************************************

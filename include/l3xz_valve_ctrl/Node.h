@@ -67,7 +67,6 @@ private:
 
   rclcpp::Publisher<std_msgs::msg::UInt16MultiArray>::SharedPtr _servo_pulse_width_pub;
   void init_pub();
-  void publish_servo_pulse_width();
 
   std::chrono::steady_clock::time_point _prev_ctrl_loop_timepoint;
   static std::chrono::milliseconds constexpr CTRL_LOOP_RATE{10};
@@ -81,6 +80,8 @@ private:
   State _state;
   State handle_Init();
   State handle_Control();
+
+  static std_msgs::msg::UInt16MultiArray toServoPulseWidthMessage(ServoPulseWidth const & servo_pulse_width);
 
   static uint16_t constexpr SERVO_PULSE_WIDTH_MIN_us     = 1000U;
   static uint16_t constexpr SERVO_PULSE_WIDTH_NEUTRAL_us = 1500U;
