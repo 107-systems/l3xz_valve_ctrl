@@ -266,7 +266,7 @@ Node::State Node::handle_Control()
       float const angle_err_rad    = angle_target_rad - angle_actual_rad;
       float const angle_err_deg    = angle_err_rad * 180.0f / M_PI;
 
-      static float constexpr ANGLE_DIFF_EPSILON_deg = 1.0f * M_PI / 180.0f;
+      static float constexpr ANGLE_DIFF_EPSILON_deg = 1.0f;
 
       if (fabs(angle_err_deg) < ANGLE_DIFF_EPSILON_deg)
       {
