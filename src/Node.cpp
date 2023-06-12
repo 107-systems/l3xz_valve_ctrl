@@ -209,7 +209,7 @@ void Node::init_error_sum_map()
 {
   for (auto leg : LEG_LIST)
     for (auto joint : HYDRAULIC_JOINT_LIST)
-      _angle_error_sum_rad_map[make_key(leg, joint)] = 0.0f;
+      _angle_error_sum_deg_map[make_key(leg, joint)] = 0.0f;
 }
 
 Node::State Node::handle_Init()
@@ -264,29 +264,30 @@ Node::State Node::handle_Control()
       float const angle_actual_rad = _angle_actual_rad_map.at(make_key(leg, joint));
       float const angle_target_rad = _angle_target_rad_map.at(make_key(leg, joint));
       float const angle_err_rad    = angle_target_rad - angle_actual_rad;
+      float const angle_err_deg    = angle_err_rad * 180.0f / M_PI;
 
+      static float constexpr ANGLE_DIFF_EPSILON_deg = 1.0f * M_PI / 180.0f;
 
-      static float constexpr ANGLE_DIFF_EPSILON_rad = 2.5f * M_PI / 180.0f;
-
-      if (fabs(angle_err_rad) < ANGLE_DIFF_EPSILON_rad)
+      if (fabs(angle_err_deg) < ANGLE_DIFF_EPSILON_deg)
       {
         _servo_pulse_width[LEG_JOINT_to_SERVO_NUM_MAP.at(make_key(leg, joint))] = SERVO_PULSE_WIDTH_NEUTRAL_us;
-        _angle_error_sum_rad_map[make_key(leg, joint)] = 0.0f;
+        _angle_error_sum_deg_map[make_key(leg, joint)] = 0.0f;
       }
       else
       {
-        float const KP = get_parameter("KP").as_double() * 180.0f / M_PI;
-        float const P_OUT = (KP * angle_err_rad);
+        float const KP = get_parameter("KP").as_double();
+        float const P_OUT = (KP * angle_err_deg);
 
-        float angle_error_sum_rad = _angle_error_sum_rad_map.at(make_key(leg, joint)) + angle_err_rad;
-        angle_error_sum_rad = std::min(angle_error_sum_rad, static_cast<float>(          M_PI/8.0f));
-        angle_error_sum_rad = std::max(angle_error_sum_rad, static_cast<float>((-1.0f) * M_PI/8.0f));
-        _angle_error_sum_rad_map[make_key(leg, joint)] = angle_error_sum_rad;
+        /* Integrate. */
+        float angle_error_sum_deg = _angle_error_sum_deg_map.at(make_key(leg, joint)) + angle_err_deg;
+        /* Limit. */
+        angle_error_sum_deg = std::min(angle_error_sum_deg,  45.0f);
+        angle_error_sum_deg = std::max(angle_error_sum_deg, -45.0f);
+        _angle_error_sum_deg_map[make_key(leg, joint)] = angle_error_sum_deg;
         float const dt_sec = static_cast<float>(CTRL_LOOP_RATE.count()) / 1000.0f;
 
-        float const KI = get_parameter("KI").as_double() * 180.0f / M_PI;
-        float const I_OUT = (KI * angle_error_sum_rad * dt_sec);
-
+        float const KI = get_parameter("KI").as_double();
+        float const I_OUT = (KI * angle_error_sum_deg * dt_sec);
 
         /* Servo PWM set point calculation. */
         float pulse_width = SERVO_PULSE_WIDTH_NEUTRAL_us + P_OUT + I_OUT;

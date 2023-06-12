@@ -73,7 +73,7 @@ private:
   rclcpp::TimerBase::SharedPtr _ctrl_loop_timer;
   void ctrl_loop();
 
-  std::map<HydraulicLegJointKey, float> _angle_error_sum_rad_map;
+  std::map<HydraulicLegJointKey, float> _angle_error_sum_deg_map;
   void init_error_sum_map();
 
   typedef std::array<uint16_t, 12> ServoPulseWidth;
