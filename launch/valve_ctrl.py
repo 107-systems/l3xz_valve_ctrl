@@ -12,7 +12,7 @@ def generate_launch_description():
       emulate_tty=True,
       parameters=[
         {'KP' : 100.0},
-        {'KI' : 100.0},
+        {'KI' : 200.0},
       ]
     )
   ])
