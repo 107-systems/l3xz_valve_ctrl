@@ -97,7 +97,6 @@ static std::map<HydraulicLegJointKey, size_t> const LEG_JOINT_to_SERVO_NUM_MAP =
 
 Node::Node()
 : rclcpp::Node("l3xz_valve_ctrl")
-, _prev_ctrl_loop_timepoint{std::chrono::steady_clock::now()}
 , _servo_pulse_width{DEFAULT_SERVO_PULSE_WIDTH}
 , _state{State::Init}
 {
@@ -110,6 +109,7 @@ Node::Node()
 
   init_error_sum_map();
 
+  _ctrl_loop_rate_monitor = loop_rate::Monitor::create(CTRL_LOOP_RATE, std::chrono::milliseconds(1));
   _ctrl_loop_timer = create_wall_timer(CTRL_LOOP_RATE, [this]() { this->ctrl_loop(); });
 
   RCLCPP_INFO(get_logger(), "%s init complete.", get_name());
@@ -181,16 +181,17 @@ void Node::init_pub()
 
 void Node::ctrl_loop()
 {
-  auto const now = std::chrono::steady_clock::now();
-  auto const ctrl_loop_rate = (now - _prev_ctrl_loop_timepoint);
-  if (ctrl_loop_rate > (CTRL_LOOP_RATE + std::chrono::milliseconds(1)))
+  _ctrl_loop_rate_monitor->update();
+  if (auto const [timeout, opt_timeout_duration] = _ctrl_loop_rate_monitor->isTimeout();
+    timeout == loop_rate::Monitor::Timeout::Yes)
+  {
     RCLCPP_WARN_THROTTLE(get_logger(),
                          *get_clock(),
                          1000,
                          "ctrl_loop should be called every %ld ms, but is %ld ms instead",
                          CTRL_LOOP_RATE.count(),
-                         std::chrono::duration_cast<std::chrono::milliseconds>(ctrl_loop_rate).count());
-  _prev_ctrl_loop_timepoint = now;
+                         opt_timeout_duration.value().count());
+  }
 
 
   /* Perform state dependent actions. */
