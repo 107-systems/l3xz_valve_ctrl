@@ -109,8 +109,13 @@ Node::Node()
 
   init_error_sum_map();
 
-  _ctrl_loop_rate_monitor = loop_rate::Monitor::create(CTRL_LOOP_RATE, std::chrono::milliseconds(1));
-  _ctrl_loop_timer = create_wall_timer(CTRL_LOOP_RATE, [this]() { this->ctrl_loop(); });
+  _ctrl_loop_rate_monitor = loop_rate::Monitor::create(
+    CTRL_LOOP_RATE,
+    std::chrono::milliseconds(1)
+    );
+  _ctrl_loop_timer = create_wall_timer(
+    CTRL_LOOP_RATE,
+    [this]() { this->ctrl_loop(); });
 
   RCLCPP_INFO(get_logger(), "%s init complete.", get_name());
 }
@@ -129,7 +134,7 @@ void Node::init_heartbeat()
   std::stringstream heartbeat_topic;
   heartbeat_topic << "/l3xz/" << get_name() << "/heartbeat";
 
-  _heartbeat_pub = heartbeat::Publisher::create(*this, heartbeat_topic.str(), HEARTBEAT_LOOP_RATE);
+  _heartbeat_pub = heartbeat::Publisher::create(*this, heartbeat_topic.str());
 }
 
 void Node::init_sub()
