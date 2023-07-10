@@ -20,6 +20,8 @@
 #include <std_msgs/msg/u_int64.hpp>
 #include <std_msgs/msg/u_int16_multi_array.hpp>
 
+#include <l3xz/l3xz.h>
+
 #include <ros2_heartbeat/publisher/Publisher.h>
 #include <ros2_loop_rate_monitor/Monitor.h>
 
@@ -29,14 +31,6 @@
 
 namespace l3xz
 {
-
-/**************************************************************************************
- * TYPEDEFS
- **************************************************************************************/
-
-enum class HydraulicJoint { Femur, Tibia };
-enum class Leg { LeftFront, LeftMiddle, LeftBack, RightFront, RightMiddle, RightBack };
-typedef std::tuple<Leg, HydraulicJoint> HydraulicLegJointKey;
 
 /**************************************************************************************
  * CLASS DECLARATION
